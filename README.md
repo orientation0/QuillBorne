@@ -1,43 +1,132 @@
-#QuillBorne
+# QuillBorne
 
-QuillBorne — экспериментальный Windows Locker, написанный на C++ с использованием WinAPI. Проект демонстрирует механизмы системной блокировки пользовательского ввода, создания полноэкранного интерфейса и взаимодействия с файловой системой Windows.
+**Windows prank / educational system locker** on modern C++ (WinAPI + GDI+).
 
-Features
+Полноэкранное окно поверх всего, низкоуровневые хуки клавиатуры и мыши, фейковый терминал, настоящий neofetch с данными системы и мемными сообщениями. Разблокировка только по коду.
 
-- Fullscreen lock screen — полноэкранное окно поверх остальных приложений.
-- Keyboard interception — перехват и блокировка определённых клавиш и сочетаний.
-- Mouse interception — блокировка взаимодействия с мышью.
-- Unlock system — проверка кода разблокировки.
-- Dynamic messages — автоматическая смена сообщений каждые 5 секунд.
-- ASCII Art — встроенная ASCII-графика.
-- Custom Win32 GUI — собственный интерфейс на базе Windows API.
-- File interaction — демонстрация работы с файлами через Windows File API.
+> **⚠️ ВАЖНО / WARNING**
+>
+> Это **шуточный и образовательный** проект.  
+> Запускайте **только на виртуальной машине** или в полностью изолированной среде.  
+> Программа требует права администратора и ставит глобальные низкоуровневые хуки (`WH_KEYBOARD_LL` / `WH_MOUSE_LL`).  
+> При неверном коде разблокировки может зашифровать несколько пользовательских файлов.  
+> Автор **не несёт ответственности** за любые последствия использования на основном компьютере.
 
-Technologies
+---
 
-- Language: C++
-- Platform: Windows
-- API: WinAPI
-- Interface: Win32 GUI
-- Build: Windows-compatible C++ compiler
+## Возможности
 
-How it works
+- Полноэкранное topmost-окно (`WS_EX_TOPMOST`)
+- Блокировка мыши и большинства «опасных» сочетаний (Win, Alt+F4, Ctrl+Shift+Esc, Alt+Tab и др.)
+- Три фазы:
+  1. **LOADING** — слайдшоу картинок из `assets/` + прогресс-бар
+  2. **TERMINAL** — эмуляция командной строки с печатью команд
+  3. **LOCKED** — арт + neofetch + поле ввода кода
+- **Реальный neofetch**: пользователь, имя ПК, версия Windows + build, uptime, разрешение, CPU, память
+- Ротация мемных фраз
+- При **неверном** коде разблокировки: шифрует до 5 случайных файлов из Desktop / Documents / Downloads (AES-256-GCM), оригиналы удаляются
+- Системные файлы, папки, `.exe` / `.dll` и т.п. **не трогает**
+- Пароль расшифровки файлов (fallback): `13827`
+- При **верном** коде: через несколько секунд появляется окно с предложением расшифровать файлы (3 попытки)
+- Опциональная поддержка сервера серийных номеров (динамические пароли)
 
-После запуска приложение создаёт полноэкранное окно, устанавливает низкоуровневые перехватчики клавиатуры и мыши и отображает интерфейс с запросом кода разблокировки.
+**Fallback-коды (если сервер недоступен):**
 
-При правильном вводе программа снимает перехватчики и завершает работу. При неправильном вводе активируется предусмотренная в исходном коде функция перезаписи TXT-файла.
+| Назначение              | Значение   |
+|-------------------------|------------|
+| Разблокировка винлокера | `Ryzendd`  |
+| Пароль файлов           | `13827`    |
 
-Disclaimer
+---
 
-This project is intended for educational and experimental purposes.
+## Требования
 
-WARNING: Siner Locker contains functionality that can interfere with normal computer operation, including keyboard and mouse input interception and file overwriting.
+- Windows 10 / 11 (x64 рекомендуется)
+- Visual Studio 2022 (Community и выше)
+  - Workload: **Desktop development with C++**
+  - Platform Toolset: **v143**
+  - Windows SDK 10.0
 
-Run only in an isolated virtual machine or disposable test environment. Do not use on personal or production systems.
+---
 
-Password:"Ryzendd"
-file password:"13827"
+## Сборка
 
-Author
+```bash
+git clone https://github.com/orientation0/QuillBorne.git
+cd QuillBorne
+```
 
-orientation0
+1. Открой `QuillBorne.sln` в Visual Studio 2022.
+2. Выбери конфигурацию **Release | x64**.
+3. **Build → Build Solution** (`Ctrl+Shift+B`).
+
+Готовый `QuillBorne.exe` появится в `src\x64\Release\` (вместе с `art.png` и папкой `assets`).
+
+---
+
+## Структура
+
+```
+QuillBorne/
+├── QuillBorne.sln
+├── LICENSE
+├── README.md
+├── .gitignore
+├── tools/
+│   └── file_encryptor.py      # GUI-утилита AES-256-GCM / ChaCha20 (совместима с форматом)
+└── src/
+    ├── QuillBorne.vcxproj
+    ├── QuillBorne.vcxproj.filters
+    ├── main.cpp               # весь код
+    ├── app.manifest           # requireAdministrator
+    ├── art.png                # логотип для neofetch
+    └── assets/                # картинки для экрана загрузки
+        └── README.txt
+```
+
+Положи любые `.png` / `.jpg` / `.bmp` / `.gif` в `src/assets/` — они будут показываться на этапе загрузки. Если папка пустая, показывается текстовый прогресс с шуточными сообщениями.
+
+---
+
+## Сервер серийных номеров (опционально)
+
+Клиент при старте может обратиться к серверу за паролями.
+
+| Поле         | Назначение                                      |
+|--------------|-------------------------------------------------|
+| `serial`     | `QB-XXXXXXXX` (хранится в `%LOCALAPPDATA%\QuillBorne\serial.txt`) |
+| `password_8` | Код разблокировки винлокера                     |
+| `password_6` | Пароль расшифровки файлов                       |
+
+В `src/main.cpp` поменяй `SERVER_HOST` на IP/домен машины с сервером (сейчас `0.0.0.0`).
+
+Если сервер недоступен — используются fallback-коды выше.
+
+---
+
+## Как выйти, если застрял
+
+1. **Ctrl + Alt + Del** → Диспетчер задач → снять задачу `QuillBorne.exe`
+2. Если не помогает — жёсткое выключение / выключение виртуальной машины
+
+---
+
+## Утилита расшифровки
+
+В папке `tools/` лежит `file_encryptor.py` — простой GUI-шифровальщик/дешифровальщик, формат которого совместим с тем, что использует сам QuillBorne (`MAGIC "FENC"`, AES-256-GCM).
+
+```bash
+pip install cryptography
+python tools/file_encryptor.py
+```
+
+---
+
+## Лицензия
+
+MIT — делай что хочешь, но не вини автора, если что-то пошло не так.
+
+---
+
+Сделано для веселья и изучения WinAPI.  
+**Не используй это во вред.**
